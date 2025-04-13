@@ -11,7 +11,7 @@ TARGET = main
 
 # Flags
 CXXFLAGS = -I$(INCLUDE_DIR)
-LDFLAGS = -L$(LIB_DIR) -lglad -lglfw3 -lopengl32 -lgdi32 -luser32 -lshell32
+LDFLAGS = -L$(LIB_DIR) -lm -lglad -lglfw3 -lopengl32 -lgdi32 -luser32 -lshell32
 
 # Source files
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
