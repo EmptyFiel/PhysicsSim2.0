@@ -11,26 +11,26 @@
 
 //add this some where glfwSetFramebufferSizeCallback(window, resizeWindow);
 
-void resizeWindow(GLFWwindow* window, int width, int height) {
-    glViewport(0, 0, width, height);
+// unsigned int shaderProgram;
+
+// void resizeWindow(GLFWwindow* window, int width, int height) {
+    // glViewport(0, 0, width, height);
     
-    float aspect = (float)width / (float)height;
-    glm::mat4 projection = glm::ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
+    // float aspect = (float)width / (float)height;
+    // glm::mat4 projection = glm::ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
     
-    // Update the projection matrix uniform in your shader
-    glUseProgram(shaderProgram);
-    unsigned int projLoc = glGetUniformLocation(shaderProgram, "projection");
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-}
+    //Update the projection matrix uniform in your shader
+    // glUseProgram(shaderProgram);
+    // unsigned int projLoc = glGetUniformLocation(shaderProgram, "projection");
+    // glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+// }
 
 // Vertex Shader source code
 const char* vertexShaderSource = R"(
     #version 330 core
     layout (location = 0) in vec3 aPos;
-	uniform mat4 projection;
-	
     void main() {
-        gl_Position = projection * vec4(aPos, 1.0);
+        gl_Position = vec4(aPos, 1.0);
     }
 )";
 
@@ -66,14 +66,14 @@ int main() {
     }
 
     // Create GLFW window
-    GLFWwindow* window = glfwCreateWindow(800, 600, "OpenGL Triangle", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Physics Sim", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
     }
     glfwMakeContextCurrent(window);
-
+	
     // Load OpenGL function pointers with GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD" << std::endl;
@@ -127,7 +127,7 @@ int main() {
 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
-
+	// glfwSetFramebufferSizeCallback(window, resizeWindow);
     // Render loop
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
