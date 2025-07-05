@@ -43,7 +43,7 @@ const char* fragmentShaderSource = R"(
     }
 )";
 
-void generateCircleVertices(int res, float radius, float* vertices){
+void generateCircleVertices(int res, float radius, float vertices){
 	const float PI = 3.14159265359f;
 	
 	vertices[0] = 0.0f;
@@ -51,7 +51,7 @@ void generateCircleVertices(int res, float radius, float* vertices){
 	vertices[2] = 0.0f;
 	
 	for(int i = 0; i <= res; i++){
-		float theta = 2.0f * PI * (float)i / (float)res;
+		float theta = 2.0f * PI * ((float)i / (float)res);
 		vertices[(i + 1)*3] = radius * cos(theta);
 		vertices[(i + 1)*3 + 1] = radius * sin(theta);
 		vertices[(i + 1)*3 + 2] = 0.0f;
@@ -79,17 +79,10 @@ int main() {
         std::cerr << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
-    // Define triangle vertices
-    // float vertices[] = {
-        // -0.5f, -0.5f, 0.0f, // Left
-         // 0.5f, -0.5f, 0.0f, // Right
-         // 0.0f,  0.5f, 0.0f  // Top
-    // };
 	
 	int res = 40;
 	float radius = 0.5f;
-	float* vertices = new float[(res + 2) * 3];
+	float vertices = new float[(res + 2) * 3];
 	generateCircleVertices(res, radius, vertices);
 	
     // Create and bind a Vertex Array Object (VAO)
@@ -127,7 +120,7 @@ int main() {
 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
-	// glfwSetFramebufferSizeCallback(window, resizeWindow);
+
     // Render loop
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
