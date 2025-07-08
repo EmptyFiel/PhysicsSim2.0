@@ -78,25 +78,38 @@ struct SpherePhysics {
     float mass;
     float radius;
     float bounceDamping;
+    glm::vec3 color;  // Added color property
 };
 
 // Initialize sphere physics
 SpherePhysics sphere = {
-    glm::vec3(0.0f, 2.0f, 0.0f),    // Starting position
-    glm::vec3(1.0f, 0.0f, 0.5f),    // Initial velocity
-    glm::vec3(0.0f, 0.0f, 0.0f),  // Gravity acceleration
+    glm::vec3(0.0f, 0.0f, 0.0f),    // Starting position
+    glm::vec3(0.0f, 0.0f, 0.0f),    // Initial velocity
+    glm::vec3(0.0f, 0.0f, 0.0f),   // Gravity acceleration
     1.0f,                           // Mass
     1.0f,                           // Radius
-    0.8f                            // Bounce damping factor
+    0.8f,                           // Bounce damping factor
+    glm::vec3(1.0f, 0.0f, 0.0f)     // color
 };
 
-SpherePhysics shere2 = {
-    glm::vec3(2.0f, 2.0f, 0.0f),    // Starting position
-    glm::vec3(1.0f, 0.0f, 0.5f),    // Initial velocity
-    glm::vec3(0.0f, 0.0f, 0.0f),  // Gravity acceleration
-    1.0f,                           // Mass
-    1.0f,                           // Radius
-    0.8f                            // Bounce damping factor
+SpherePhysics sphere2 = {
+    glm::vec3(3.0f, 2.0f, 0.0f),    // starting position
+    glm::vec3(0.0f, 0.0f, 0.0f),   //  initial velocity
+    glm::vec3(0.0f, 0.0f, 0.0f),   // Same gravity
+    1.0f,                           // mass
+    1.0f,                           // Same radius
+    0.9f,                           // Different bounce damping
+    glm::vec3(0.0f, 0.0f, 1.0f)     //color
+};
+
+SpherePhysics sphere3 = {
+    glm::vec3(-3.0f, -2.0f, 0.0f),    // starting position
+    glm::vec3(0.0f, 0.0f, 0.0f),   //  initial velocity
+    glm::vec3(0.0f, 0.0f, 0.0f),   // Same gravity
+    1.0f,                           // mass
+    1.0f,                           // Same radius
+    0.9f,                           // Different bounce damping
+    glm::vec3(0.0f, 1.0f, 0.0f)     //color
 };
 
 // Resize callback function
@@ -113,39 +126,6 @@ void updatePhysics(SpherePhysics& sphere, float deltaTime) {
     
     // Update position based on velocity
     sphere.position += sphere.velocity * deltaTime;
-    
-    // Boundary collision detection and response
-    float boundarySize = 7.0f;
-    
-    // X-axis boundaries
-    if (sphere.position.x + sphere.radius > boundarySize) {
-        sphere.position.x = boundarySize - sphere.radius;
-        sphere.velocity.x = -sphere.velocity.x * sphere.bounceDamping;
-    }
-    if (sphere.position.x - sphere.radius < -boundarySize) {
-        sphere.position.x = -boundarySize + sphere.radius;
-        sphere.velocity.x = -sphere.velocity.x * sphere.bounceDamping;
-    }
-    
-    // Y-axis boundaries (floor and ceiling)
-    if (sphere.position.y - sphere.radius < -boundarySize) {
-        sphere.position.y = -boundarySize + sphere.radius;
-        sphere.velocity.y = -sphere.velocity.y * sphere.bounceDamping;
-    }
-    if (sphere.position.y + sphere.radius > boundarySize) {
-        sphere.position.y = boundarySize - sphere.radius;
-        sphere.velocity.y = -sphere.velocity.y * sphere.bounceDamping;
-    }
-    
-    // Z-axis boundaries
-    if (sphere.position.z + sphere.radius > boundarySize) {
-        sphere.position.z = boundarySize - sphere.radius;
-        sphere.velocity.z = -sphere.velocity.z * sphere.bounceDamping;
-    }
-    if (sphere.position.z - sphere.radius < -boundarySize) {
-        sphere.position.z = -boundarySize + sphere.radius;
-        sphere.velocity.z = -sphere.velocity.z * sphere.bounceDamping;
-    }
 }
 
 // Add force to sphere (for user interaction)
@@ -236,6 +216,35 @@ void checkProgramLinking(unsigned int program) {
     }
 }
 
+// Function to draw a sphere with given properties
+void drawSphere(unsigned int shaderProgram, unsigned int VAO, int indexCount, 
+                const SpherePhysics& sphere, float currentTime,
+                const glm::mat4& view, const glm::mat4& projection,
+                const glm::vec3& lightPos, const glm::vec3& cameraPos, 
+                const glm::vec3& lightColor,
+                int modelLoc, int viewLoc, int projectionLoc, 
+                int lightPosLoc, int viewPosLoc, int lightColorLoc, int objectColorLoc) {
+    
+    // Model matrix (translate to sphere's current position)
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, sphere.position);
+    // Optional: add rotation for visual effect
+    model = glm::rotate(model, currentTime * 0.5f, glm::vec3(0.5f, 1.0f, 0.0f));
+    
+    // Set uniforms
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3fv(lightPosLoc, 1, glm::value_ptr(lightPos));
+    glUniform3fv(viewPosLoc, 1, glm::value_ptr(cameraPos));
+    glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
+    glUniform3fv(objectColorLoc, 1, glm::value_ptr(sphere.color));
+    
+    // Draw sphere
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+}
+
 int main() {
     // Initialize GLFW
     if (!glfwInit()) {
@@ -263,28 +272,12 @@ int main() {
     // Keyboard input callback
     glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
         if (action == GLFW_PRESS || action == GLFW_REPEAT) {
-            glm::vec3 force(0.0f);
-            float forceStrength = 50.0f;
             
             switch (key) {
-                case GLFW_KEY_W: force.z = -forceStrength; break;
-                case GLFW_KEY_S: force.z = forceStrength; break;
-                case GLFW_KEY_A: force.x = -forceStrength; break;
-                case GLFW_KEY_D: force.x = forceStrength; break;
-                case GLFW_KEY_SPACE: force.y = forceStrength; break;
-                case GLFW_KEY_LEFT_SHIFT: force.y = -forceStrength; break;
-                case GLFW_KEY_R: 
-                    // Reset sphere position and velocity
-                    sphere.position = glm::vec3(0.0f, 2.0f, 0.0f);
-                    sphere.velocity = glm::vec3(1.0f, 0.0f, 0.5f);
-                    break;
+                case GLFW_KEY_SPACE: ; break;
                 case GLFW_KEY_ESCAPE:
                     glfwSetWindowShouldClose(window, true);
                     break;
-            }
-            
-            if (key != GLFW_KEY_R && key != GLFW_KEY_ESCAPE) {
-                addForce(sphere, force);
             }
         }
     });
@@ -376,17 +369,19 @@ int main() {
     int objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
     
     // Camera settings
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 8.0f);
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 30.0f);
     glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     
     // Lighting settings
     glm::vec3 lightPos = glm::vec3(5.0f, 5.0f, 5.0f);
     glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-    glm::vec3 objectColor = glm::vec3(1.0f, 0.5f, 0.2f);
     
     // Timing variables
     float lastTime = glfwGetTime();
+    
+    // Use shader program
+    glUseProgram(shaderProgram);
     
     // Render loop
     while (!glfwWindowShouldClose(window)) {
@@ -395,20 +390,16 @@ int main() {
         float deltaTime = currentTime - lastTime;
         lastTime = currentTime;
         
-        // Update physics
+        // Update physics for both spheres
         updatePhysics(sphere, deltaTime);
-        
+        updatePhysics(sphere2, deltaTime);
+        updatePhysics(sphere3, deltaTime);
+		
         // Clear the screen and depth buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         // Calculate matrices
         float aspectRatio = (float)windowWidth / (float)windowHeight;
-        
-        // Model matrix (translate to sphere's current position)
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, sphere.position);
-        // Optional: add rotation for visual effect
-        model = glm::rotate(model, currentTime * 0.5f, glm::vec3(0.5f, 1.0f, 0.0f));
         
         // View matrix
         glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, cameraUp);
@@ -416,20 +407,21 @@ int main() {
         // Projection matrix (perspective)
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
         
-        // Use shader program and set uniforms
-        glUseProgram(shaderProgram);
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        glUniform3fv(lightPosLoc, 1, glm::value_ptr(lightPos));
-        glUniform3fv(viewPosLoc, 1, glm::value_ptr(cameraPos));
-        glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
-        glUniform3fv(objectColorLoc, 1, glm::value_ptr(objectColor));
+        // Draw first sphere
+        drawSphere(shaderProgram, VAO, indexCount, sphere, currentTime, 
+                  view, projection, lightPos, cameraPos, lightColor,
+                  modelLoc, viewLoc, projectionLoc, lightPosLoc, viewPosLoc, lightColorLoc, objectColorLoc);
         
-        // Draw sphere
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+        // Draw second sphere
+        drawSphere(shaderProgram, VAO, indexCount, sphere2, currentTime, 
+                  view, projection, lightPos, cameraPos, lightColor,
+                  modelLoc, viewLoc, projectionLoc, lightPosLoc, viewPosLoc, lightColorLoc, objectColorLoc);
         
+		// Draw third sphere
+        drawSphere(shaderProgram, VAO, indexCount, sphere3, currentTime, 
+                  view, projection, lightPos, cameraPos, lightColor,
+                  modelLoc, viewLoc, projectionLoc, lightPosLoc, viewPosLoc, lightColorLoc, objectColorLoc);
+		
         // Swap buffers and poll events
         glfwSwapBuffers(window);
         glfwPollEvents();
