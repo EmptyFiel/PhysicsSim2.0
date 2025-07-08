@@ -83,8 +83,8 @@ struct SpherePhysics {
 
 // Initialize sphere physics
 SpherePhysics sphere = {
-    glm::vec3(0.0f, 0.0f, 0.0f),    // Starting position
-    glm::vec3(0.0f, 0.0f, 0.0f),    // Initial velocity
+    glm::vec3(3.0f, 2.0f, 0.0f),    // Starting position
+    glm::vec3(-1.0f, -2.0f, 0.0f),    // Initial velocity
     glm::vec3(0.0f, 0.0f, 0.0f),   // Gravity acceleration
     1.0f,                           // Mass
     1.0f,                           // Radius
@@ -93,8 +93,8 @@ SpherePhysics sphere = {
 };
 
 SpherePhysics sphere2 = {
-    glm::vec3(3.0f, 2.0f, 0.0f),    // starting position
-    glm::vec3(1.0f, 0.0f, 0.0f),   //  initial velocity
+    glm::vec3(-3.0f, 2.0f, 0.0f),    // starting position
+    glm::vec3(1.0f, 0.0f, -1.0f),   //  initial velocity
     glm::vec3(1.0f, 0.0f, 0.0f),   // Same gravity
     1.0f,                           // mass
     1.0f,                           // Same radius
@@ -104,7 +104,7 @@ SpherePhysics sphere2 = {
 
 SpherePhysics sphere3 = {
     glm::vec3(-3.0f, -2.0f, 0.0f),    // starting position
-    glm::vec3(0.0f, 0.0f, 0.0f),   //  initial velocity
+    glm::vec3(0.0f, 2.0f, 2.0f),   //  initial velocity
     glm::vec3(0.0f, 0.0f, 0.0f),   // Same gravity
     1.0f,                           // mass
     1.0f,                           // Same radius
@@ -124,14 +124,15 @@ void resizeWindow(GLFWwindow* window, int width, int height) {
 // Physics update function
 void updatePhysics(SpherePhysics& sphere, const SpherePhysics& sphere1, const SpherePhysics& sphere2, float deltaTime) {
 	if (!playback) return;
+		glm::vec3 change1 = sphere1.position - sphere.position;
+		glm::vec3 change2 = sphere2.position - sphere.position;
+		glm::vec3 combinedchange = change1 + change2;
+		sphere.acceleration = combinedchange;
 		// Update velocity based on acceleration
 		sphere.velocity += sphere.acceleration * deltaTime;
 		
 		// Update position based on velocity
 		sphere.position += sphere.velocity * deltaTime;
-		glm::vec3 change1 = sphere1.position - sphere.position;
-		glm::vec3 change2 = sphere2.position - sphere.position;
-		glm::vec3 combinedchange = change1 + change2
 }
 
 // Add force to sphere (for user interaction)
