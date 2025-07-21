@@ -7,6 +7,7 @@
 #include "../include/glm/gtc/type_ptr.hpp"
 #include <iostream>
 #include <cmath>
+#include <vector>
 
 //g++ ./src/main.cpp -o main -I./include -L./lib -lglad -lglfw3 -lopengl32 -lgdi32 -luser32 -lshell32
 
@@ -66,6 +67,30 @@ const char* fragmentShaderSource = R"(
     }
 )";
 
+const char* lineVertexShaderSource = R"(
+    #version 330 core
+    layout (location = 0) in vec3 aPos;
+    
+    uniform mat4 model;
+    uniform mat4 view;
+    uniform mat4 projection;
+    
+    void main() {
+        gl_Position = projection * view * model * vec4(aPos, 1.0);
+    }
+)";
+
+const char* lineFragmentShaderSource = R"(
+    #version 330 core
+    out vec4 FragColor;
+    
+    uniform vec3 lineColor;
+    
+    void main() {
+        FragColor = vec4(lineColor, 1.0);
+    }
+)";
+
 // Global variables for window dimensions and physics
 int windowWidth = 800;
 int windowHeight = 600;
@@ -83,30 +108,30 @@ struct SpherePhysics {
 
 // Initialize sphere physics
 SpherePhysics sphere = {
-    glm::vec3(3.0f, 2.0f, 0.0f),    // Starting position (added f suffix)
-    glm::vec3(-1.0f, -2.0f, 0.0f),  // Initial velocity (added f suffix)
-    glm::vec3(0.0f, 0.0f, 0.0f),    // Gravity acceleration (added f suffix)
-    1.0f,                           // Mass (changed to float)
+    glm::vec3(3.0f, 2.0f, 0.0f),    // Starting position
+    glm::vec3(-1.0f, -2.0f, 0.0f),  // Initial velocity  
+    glm::vec3(0.0f, 0.0f, 0.0f),    // Gravity acceleration  
+    1.0f,                           // Mass
     1.0f,                           // Radius
     0.8f,                           // Bounce damping factor
     glm::vec3(1.0f, 0.0f, 0.0f)     // color
 };
 
 SpherePhysics sphere2 = {
-    glm::vec3(-3.0f, 2.0f, 0.0f),   // starting position (added f suffix)
-    glm::vec3(1.0f, 0.0f, -1.0f),   // initial velocity (added f suffix)
-    glm::vec3(0.0f, 0.0f, 0.0f),    // Same gravity (added f suffix)
-    1.0f,                           // mass (changed to float)
+    glm::vec3(-3.0f, 2.0f, 0.0f),   // starting position  
+    glm::vec3(1.0f, 0.0f, -1.0f),   // initial velocity  
+    glm::vec3(0.0f, 0.0f, 0.0f),    // Same gravity  
+    1.0f,                           // mass
     1.0f,                           // Same radius
     0.9f,                           // Different bounce damping
     glm::vec3(0.0f, 0.0f, 1.0f)     // color
 };
 
 SpherePhysics sphere3 = {
-    glm::vec3(-3.0f, -2.0f, 0.0f),  // starting position (added f suffix)
-    glm::vec3(0.0f, 2.0f, 2.0f),    // initial velocity (added f suffix)
-    glm::vec3(0.0f, 0.0f, 0.0f),    // Same gravity (added f suffix)
-    1.0f,                           // mass (changed to float)
+    glm::vec3(-3.0f, -2.0f, 0.0f),  // starting position  
+    glm::vec3(0.0f, 2.0f, 2.0f),    // initial velocity  
+    glm::vec3(0.0f, 0.0f, 0.0f),    // Same gravity  
+    1.0f,                           // mass
     1.0f,                           // Same radius
     0.9f,                           // Different bounce damping
     glm::vec3(0.0f, 1.0f, 0.0f)     // color
@@ -121,11 +146,59 @@ void resizeWindow(GLFWwindow* window, int width, int height) {
     windowHeight = height;
 }
 
-// Physics update function
-void updatePhysics(SpherePhysics& sphere, const SpherePhysics& sphere1, const SpherePhysics& sphere2, float deltaTime) {
+void handleCollisions(SpherePhysics& sphere, SpherePhysics& sphere1){
+    glm::vec3 change1 = sphere1.position - sphere.position;
+    float distance1 = glm::length(change1);
+    float minDistance1 = sphere.radius + sphere1.radius;
+
+    if (distance1 <= minDistance1 && distance1 > 0.01f) {
+        // Collision normal
+        glm::vec3 normal = change1 / distance1;
+        
+        // Separate spheres more aggressively
+        float overlap = minDistance1 - distance1;
+        float separationAmount = overlap * 0.5f + 0.05f; // Increased separation
+        sphere.position -= normal * separationAmount;
+        sphere1.position += normal * separationAmount;
+        
+        // Simple elastic collision (equal mass)
+        glm::vec3 relativeVelocity = sphere1.velocity - sphere.velocity;
+        float velocityAlongNormal = glm::dot(relativeVelocity, normal);
+        
+        if (velocityAlongNormal > 0) return; // Objects separating
+        
+        // Apply collision response
+        float restitution = 0.8f; // Bounciness factor
+        float impulse = -(1 + restitution) * velocityAlongNormal;
+        
+        sphere.velocity += impulse * normal;
+        sphere1.velocity -= impulse * normal;
+        
+        // Add tiny random component only during collision to break symmetry
+        float randomStrength = 0.1f;
+        glm::vec3 randomVec = glm::vec3(
+            (rand() / (float)RAND_MAX - 0.5f) * randomStrength,
+            (rand() / (float)RAND_MAX - 0.5f) * randomStrength,
+            (rand() / (float)RAND_MAX - 0.5f) * randomStrength
+        );
+        sphere.velocity += randomVec;
+        sphere1.velocity -= randomVec; // Conserve momentum
+    }
+    
+    float maxSpeed = 50.0f;
+    if (glm::length(sphere.velocity) > maxSpeed){
+        sphere.velocity = glm::normalize(sphere.velocity) * maxSpeed;
+    }
+    if (glm::length(sphere1.velocity) > maxSpeed){
+        sphere1.velocity = glm::normalize(sphere1.velocity) * maxSpeed; // Fixed this line
+    }
+}
+
+// Keep your original updatePhysics function - it was working fine
+void updatePhysics(SpherePhysics& sphere, const SpherePhysics& sphere1,const SpherePhysics& sphere2, float deltaTime) {
     if (!playback) return;
     
-    const float G = 20.0f;  // Changed to float and added f suffix
+    const float G = 15.0f;
     glm::vec3 change1 = sphere1.position - sphere.position;
     glm::vec3 change2 = sphere2.position - sphere.position;
     
@@ -214,6 +287,29 @@ void generateSphereVertices(int latRes, int lonRes, float radius, float*& vertic
         }
     }
 }
+
+std::vector<float> generateGridVertices(int size, float spacing) {
+    std::vector<float> gridVertices;
+    float halfSize = (size - 1) * spacing * 0.5f;
+    
+    // Generate horizontal lines (XZ plane)
+    for (int i = 0; i < size; ++i) {
+        float z = -halfSize + i * spacing;
+        // Line along X axis
+        gridVertices.insert(gridVertices.end(), {-halfSize, 0.0f, z});
+        gridVertices.insert(gridVertices.end(), {halfSize, 0.0f, z});
+    }
+    
+    // Generate vertical lines (XZ plane)
+    for (int i = 0; i < size; ++i) {
+        float x = -halfSize + i * spacing;
+        // Line along Z axis
+        gridVertices.insert(gridVertices.end(), {x, 0.0f, -halfSize});
+        gridVertices.insert(gridVertices.end(), {x, 0.0f, halfSize});
+    }
+    return gridVertices;
+}
+
 
 // Function to check shader compilation errors
 void checkShaderCompilation(unsigned int shader, const char* type) {
@@ -377,6 +473,45 @@ int main() {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     
+	int gridSize = 25;
+	float spacing = 5.0f;
+	std::vector<float> gridVertices = generateGridVertices(gridSize, spacing);
+
+	unsigned int gridVAO, gridVBO;
+	glGenVertexArrays(1, &gridVAO);
+	glGenBuffers(1, &gridVBO);
+
+	glBindVertexArray(gridVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
+	glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	
+	
+	unsigned int lineVertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(lineVertexShader, 1, &lineVertexShaderSource, NULL);
+	glCompileShader(lineVertexShader);
+	checkShaderCompilation(lineVertexShader, "LINE_VERTEX");
+
+	unsigned int lineFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(lineFragmentShader, 1, &lineFragmentShaderSource, NULL);
+	glCompileShader(lineFragmentShader);
+	checkShaderCompilation(lineFragmentShader, "LINE_FRAGMENT");
+
+	unsigned int lineShaderProgram = glCreateProgram();
+	glAttachShader(lineShaderProgram, lineVertexShader);
+	glAttachShader(lineShaderProgram, lineFragmentShader);
+	glLinkProgram(lineShaderProgram);
+	checkProgramLinking(lineShaderProgram);
+
+	glDeleteShader(lineVertexShader);
+	glDeleteShader(lineFragmentShader);
+
+	
     // Set clear color
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     
@@ -390,7 +525,7 @@ int main() {
     int objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
     
     // Camera settings
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 30.0f);
+    glm::vec3 cameraPos = glm::vec3(30.0f, 15.0f, 30.0f);
     glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     
@@ -416,6 +551,10 @@ int main() {
         updatePhysics(sphere2, sphere, sphere3, deltaTime);
         updatePhysics(sphere3, sphere, sphere2, deltaTime);
         
+		handleCollisions(sphere, sphere2);	
+		handleCollisions(sphere, sphere3);
+		handleCollisions(sphere2, sphere3);
+		
         // Clear the screen and depth buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
@@ -426,7 +565,7 @@ int main() {
         glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, cameraUp);
         
         // Projection matrix (perspective)
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 200.0f);
         
         // Draw first sphere
         drawSphere(shaderProgram, VAO, indexCount, sphere, currentTime, 
@@ -443,6 +582,17 @@ int main() {
                   view, projection, lightPos, cameraPos, lightColor,
                   modelLoc, viewLoc, projectionLoc, lightPosLoc, viewPosLoc, lightColorLoc, objectColorLoc);
         
+		glUseProgram(lineShaderProgram);
+		glm::mat4 gridModel = glm::mat4(1.0f);
+		glUniformMatrix4fv(glGetUniformLocation(lineShaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(gridModel));
+		glUniformMatrix4fv(glGetUniformLocation(lineShaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(lineShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniform3f(glGetUniformLocation(lineShaderProgram, "lineColor"), 0.3f, 0.3f, 0.3f); // Dim gray
+
+		glBindVertexArray(gridVAO);
+		glDrawArrays(GL_LINES, 0, gridVertices.size() / 3);
+
+		glUseProgram(shaderProgram);
         // Swap buffers and poll events
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -453,7 +603,9 @@ int main() {
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
     glDeleteProgram(shaderProgram);
+	glDeleteVertexArrays(1, &gridVAO);
+	glDeleteBuffers(1, &gridVBO);
+	glDeleteProgram(lineShaderProgram);
     glfwTerminate();
-    
     return 0;
 }
